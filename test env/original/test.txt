@@ -1,0 +1,6 @@
+This is a test folder
+with multiple lines
+Line number 3
+
+
+Line number 6
