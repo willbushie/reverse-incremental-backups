@@ -1,15 +1,53 @@
 from pathlib import Path
 import time
 import os
+import datetime
 
 from file import File
 
-
-def backup():
+def readIndex(path):
     """
-    Conduct backup procedure.
+    Read the current index file, creating File objects and adding them to an
+    index to be held in memory for quick searching. 
+    @param path - Path to the index file.
     """
     return None
+
+def backup(path,pathToBackup,pathToIndex=None):
+    """
+    Conduct backup procedure.
+    @param path - Path to the files/directories to be backed up.
+    @param pathToBackup - Path to where the backups will be stored.
+    @param pathToIndex (default None) - Path to the index file (if it exists).
+    """
+    numOfDirectories = 0
+    numOfFiles = 0
+    totalSize = 0
+    Files = []
+    Index = {}
+
+    indexFile = open(pathToIndex,'w')
+
+    for dirpath, dinames, files in os.walk(path):
+        numOfDirectories += 1
+        for file_name in files:
+            numOfFiles += 1
+            fullPath = Path(dirpath + '/' + file_name)
+            if (os.path.exists(fullPath)):
+                currFile = File(fullPath)
+                totalSize += currFile.st_size
+                Files.append(currFile)
+                Index.update({currFile.st_ino: currFile})
+                indexFile.write(f"{currFile.getAll()}\n")
+            else:
+                print(f"FileNotFoundError: {fullPath}")
+        indexFile.close()
+    
+    return {
+        'numOfDirectories': numOfDirectories,
+        'numOfFiles': numOfFiles,
+        'totalSize': totalSize
+    }
 
 def restore():
     """
@@ -17,81 +55,40 @@ def restore():
     """
     return None
 
+def logger(logFile, message=''):
+    """
+    Send a message to a specific log file.
+    @param logFile - File to write the log to.
+    @param message (optional) - message to include in the log.
+    """
+    currTime = datetime.datetime.now()
+    timestampString = f"[{currTime.strftime("%Y-%m-%d %H:%M:%S %Z")}]"
+    file = open(logFile,'w')
+    file.write(f"{timestampString} {message}")
+    file.close()
+    print('logger called and completed')
+
 def main():
     """
-    Main process that handles all possible actions. 
+    Only method to be called.
     """
-    start = time.time()
     print("MAIN METHOD STARTING----\n")
+
+    start = time.time()
     
-    # originalFile = File(Path('./test env/original/test.txt'))
-    # backupFile = File(Path('./test env/backup/test.txt'))
-    # backupDir = File(Path('./test env/backup'))
-
-    # print(originalFile.getAll())
-    # print(backupFile.getAll())
-    # print(backupDir.getAll())
-
-    numOfFiles = 0
-    numOfDirectories = 0
-    totalSize = 0
-
-    # memory held queues
-    Index = {}
-    Files = []
-
-    indexFileLarge = open('./index-large.txt','w')
-    indexFileSmall = open('./index-small.txt','w')
-    for dirpath, dirnames, files in os.walk('./test env'):
-        # print(f'Found directory: {dirpath}')
-        numOfDirectories += 1
-        for file_name in files:
-            numOfFiles += 1
-            full_file_path = Path(dirpath + "/" + file_name)
-            if (os.path.exists(full_file_path)):
-                currFile = File(full_file_path)
-            else:
-                print('file not found:',full_file_path) 
-            totalSize += currFile.st_size
-            Files.append(currFile)
-            Index.update({currFile.st_ino: currFile})
-            indexFileLarge.write(f"{currFile.getAll()}\n")
-            indexFileSmall.write(f"{currFile.st_ino},{currFile.st_mtime_ns}")
-            # print(file_name)
-            # print(full_file_path)
-    indexFileLarge.close()
-    indexFileSmall.close()
-
-    # add new line to second file
-    # time.sleep(1)
-    # print(Files[1].st_mtime_ns, ' - original last modification time')
-    # file = open(Files[1].real_path,'a')
-    # file.write('\nnew data')
-    # file.close()
-    # print(os.stat(Files[1].passed_path).st_mtime_ns,' - open, close, and write')
-    # # time.sleep(1)
-    # file = open(Files[1].real_path,'a')
-    # file.close()
-    # print(os.stat(Files[1].passed_path).st_mtime_ns, ' - open and close, no modifications')
-
-    # for file in Files:
-    #     fileFromIndex = Index.get(file.st_ino)
-    #     if (fileFromIndex.st_mtime_ns != file.st_mtime_ns):
-    #         print('files do not match')
-    #         print('index file: ',fileFromIndex.getAll())
-    #         print('current file: ',file.getAll())
-    #     else: 
-    #         print('modification times match',fileFromIndex.st_mtime_ns,'|',file.st_mtime_ns)
-        
+    # conduct backup procedure
+    originalPath = Path('./test env/original')
+    backupPath = Path('./test env/backup')
+    indexPath = Path('./index.txt')
+    backupResults = backup(originalPath,backupPath,indexPath)
+    
     end = time.time()
-    indexFileLargeSize = os.stat('./index-large.txt').st_size
-    indexFileSmallSize = os.stat('./index-small.txt').st_size
-    print(f"size of large index file: {indexFileLargeSize} bytes ({round(indexFileLargeSize/1000000)} MB)")
-    print(f"size of small index file: {indexFileSmallSize} bytes ({round(indexFileSmallSize/1000000)} MB)")
-    print('PROGRAM STATISTICS-----')
-    print(f"total files found: {numOfFiles}")
-    print(f"total directories found: {numOfDirectories}")
-    print(f"total size of all files found: {totalSize} bytes ({round(totalSize/1000000,2)} MB | {round(totalSize/1000000000,2)} GB)")
+
+    # show program statitics
+    print('\nPROGRAM STATISTICS-----')
+    print(f"total files found: {backupResults.get('numOfFiles')}")
+    print(f"total directories found: {backupResults.get('numOfDirectories')}")
+    print(f"total size of all files found: {backupResults.get('totalSize')} bytes ({round(backupResults.get('totalSize')/1000000,2)} MB | {round(backupResults.get('totalSize')/1000000000,2)} GB)")
     print(f"program execution time: {round(end - start, 3)} (Seconds)")
     print("MAIN METHOD COMPLETED----")
 
