@@ -1,11 +1,15 @@
-"""
-File class
-"""
-
 import os
 
 class File:
-    def __init__(self, path):
+    def __init__(self,path):
+        """
+        ## File constructor
+        Takes a path which is used to gather detailed information on the file.
+        This class should not be used when reading from the index file.
+        ## TODO
+        - If there is a path passed that does not exist, the program should be
+        able to handle that.
+        """
         self.passed_path = path
         self.real_path = os.path.realpath(self.passed_path)
         self.is_dir = os.path.isdir(self.real_path)
@@ -64,6 +68,9 @@ class File:
 
 
     def getAll(self):
+        """
+        Returns all class attributes. 
+        """
         returnMap = {
             "passed_path": self.passed_path,
             "real_path": self.real_path,
