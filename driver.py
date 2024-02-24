@@ -2,6 +2,7 @@ from pathlib import Path
 import time
 import os
 import datetime
+import shutil
 
 from file import File
 
@@ -24,9 +25,9 @@ def backup(path,pathToBackup,pathToIndex=None):
     numOfFiles = 0
     totalSize = 0
     Files = []
-    Index = {}
+    localIndex = {}
 
-    indexFile = open(pathToIndex,'w')
+    # indexFile = open(pathToIndex,'w')
 
     for dirpath, dinames, files in os.walk(path):
         numOfDirectories += 1
@@ -37,11 +38,12 @@ def backup(path,pathToBackup,pathToIndex=None):
                 currFile = File(fullPath)
                 totalSize += currFile.st_size
                 Files.append(currFile)
-                Index.update({currFile.st_ino: currFile})
-                indexFile.write(f"{currFile.getAll()}\n")
+                localIndex.update({currFile.st_ino: currFile})
+                currFile.setStoredPath(pathToBackup)
+                # indexFile.write(f"{currFile.getAll()}\n")
             else:
                 print(f"FileNotFoundError: {fullPath}")
-        indexFile.close()
+        # indexFile.close()
     
     return {
         'numOfDirectories': numOfDirectories,

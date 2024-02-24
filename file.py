@@ -13,6 +13,7 @@ class File:
         self.passed_path = path
         self.real_path = os.path.realpath(self.passed_path)
         self.is_dir = os.path.isdir(self.real_path)
+        self.stored_path = ''
         # https://docs.python.org/3/library/os.html#os.stat
         stats = os.stat(self.passed_path)
         self.st_mode = stats.st_mode
@@ -102,3 +103,22 @@ class File:
         }
 
         return returnMap
+
+    def setStoredPath(self, backupPath):
+        """
+        Determines the stored path for a File object and sets the instance's variable.
+        @param backupPath - The path leading to the original files, which are to be backed up.
+        @return string - Returns the self.store_path of the instance after setting it.
+        """
+        # finalBackupPath = 
+
+        return None
+
+    def getIndexPrint(self):
+        """
+        Return string containing all necessary data for writing to the index file.
+        Format is: "{st_ino},{},{real_path},{store_path}"
+        """
+        returnStr = f"{self.st_ino},{self.st_mtime_ns},{self.real_path},{self.stored_path}"
+
+        return returnStr
