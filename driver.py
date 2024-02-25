@@ -77,7 +77,7 @@ def logger(logFile, message=''):
     @param message (optional) - message to include in the log.
     """
     currTime = datetime.datetime.now()
-    timestampString = f"[{currTime.strftime("%Y-%m-%d %H:%M:%S %Z")}]"
+    timestampString = f"[{currTime.strftime("%Y-%m-%d %H:%M:%S %z")}]"
     file = open(logFile,'w')
     file.write(f"{timestampString} {message}")
     file.close()
