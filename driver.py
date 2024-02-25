@@ -43,7 +43,7 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
     # used to store future operations
     copyOperations = []
     copyOperationsSize = 0
-    indexWrite = []
+    indexWrites = []
 
     index = readIndex(pathToIndex)
 
@@ -52,6 +52,7 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
         for file_name in files:
             fullPath = Path(dirpath + '/' + file_name)
             if (os.path.exists(fullPath)):
+                numOfFiles += 1
                 currFile = File(fullPath)
                 currFile.setStoredPath(pathToOriginal,pathToBackup)
                 totalSize += currFile.st_size
@@ -59,23 +60,25 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
                     indexSearchResult = index.get(currFile.st_ino,None)
                     if (indexSearchResult != None):
                         if (currFile.st_mtime_ns > indexSearchResult.st_mtime_ns):
-                            indexWrite.append(currFile.getIndexPrint())
+                            indexWrites.append(currFile.getIndexPrint())
                             copyOperations.append(currFile.real_path + ',' + currFile.stored_path)
                             copyOperationsSize += currFile.st_size
                         elif (currFile.st_mtime_ns == indexSearchResult.st_mtime_ns):
-                            indexWrite.append(indexSearchResult.getIndexPrint())
+                            indexWrites.append(indexSearchResult.getIndexPrint())
                     else:
-                        indexWrite.append(currFile.getIndexPrint())
+                        indexWrites.append(currFile.getIndexPrint())
                         copyOperations.append(currFile.real_path + ',' + currFile.stored_path)
                         copyOperationsSize += currFile.st_size
                 else:
-                    indexWrite.append(currFile.getIndexPrint())
+                    indexWrites.append(currFile.getIndexPrint())
                     copyOperations.append(currFile.real_path + ',' + currFile.stored_path)
                     copyOperationsSize += currFile.st_size
             else:
                 # handle file not found error (should continue if the file does not exist)
                 print('FileNotFoundError:', fullPath)
    
+    writeToIndex(pathToIndex,indexWrites)
+
     return {
         'numOfDirectories': numOfDirectories,
         'numOfFiles': numOfFiles,
@@ -87,6 +90,20 @@ def restore():
     Conduct restore procedure.
     """
     return None
+
+def writeToIndex(path,data):
+    """
+    Conduct all writes to the index file from data held in a list. The index file will
+    be created if it does not already exist. 
+    @param path - Path to where the index file is held/desired to be placed.
+    @param data - List containing strings of line data to write to the index file.
+    """
+    file = open(path,'w')
+
+    for line in data:
+        file.write(line + '\n')
+    
+    file.close()
 
 def logger(logFile, message=''):
     """
