@@ -1,4 +1,5 @@
 from pathlib import Path
+from indexfile import IndexFile
 import time
 import os
 import datetime
@@ -11,10 +12,22 @@ def readIndex(path):
     Read the current index file, creating File objects and adding them to an
     index to be held in memory for quick searching. 
     @param path - Path to the index file.
+    @return - Returns indexed map of index files.
     """
-    return None
+    Index = {}
 
-def backup(path,pathToBackup,pathToIndex=None):
+    try:
+        indexFile = open(path,'r')
+        for line in indexFile:
+            currIndexFile = IndexFile(line)
+            Index.update({currIndexFile.st_ino:currIndexFile})
+    except (FileNotFoundError):
+        return Index
+    finally:
+        indexFile.close()
+
+    return Index
+
     """
     Conduct backup procedure.
     @param path - Path to the files/directories to be backed up.
