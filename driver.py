@@ -19,8 +19,9 @@ def readIndex(path):
     try:
         indexFile = open(path,'r')
         for line in indexFile:
-            currIndexFile = IndexFile(line)
-            Index.update({currIndexFile.st_ino:currIndexFile})
+            if (line != '\n'):
+                currIndexFile = IndexFile(line)
+                Index.update({currIndexFile.st_ino:currIndexFile})
     except (FileNotFoundError):
         return Index
     finally:
