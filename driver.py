@@ -28,36 +28,54 @@ def readIndex(path):
 
     return Index
 
+def backup(pathToOriginal,pathToBackup,pathToIndex):
     """
     Conduct backup procedure.
-    @param path - Path to the files/directories to be backed up.
+    @param pathToOriginal - Path to the files/directories to be backed up.
     @param pathToBackup - Path to where the backups will be stored.
-    @param pathToIndex (default None) - Path to the index file (if it exists).
+    @param pathToIndex - Path to where the index file is store.
     """
+    # used for program statistics
     numOfDirectories = 0
     numOfFiles = 0
     totalSize = 0
-    Files = []
-    localIndex = {}
 
-    # indexFile = open(pathToIndex,'w')
+    # used to store future operations
+    copyOperations = []
+    copyOperationsSize = 0
+    indexWrite = []
 
-    for dirpath, dinames, files in os.walk(path):
+    index = readIndex(pathToIndex)
+
+    for dirpath, dirnames, files in os.walk(pathToOriginal):
         numOfDirectories += 1
         for file_name in files:
-            numOfFiles += 1
             fullPath = Path(dirpath + '/' + file_name)
             if (os.path.exists(fullPath)):
                 currFile = File(fullPath)
+                currFile.setStoredPath(pathToOriginal,pathToBackup)
                 totalSize += currFile.st_size
-                Files.append(currFile)
-                localIndex.update({currFile.st_ino: currFile})
-                currFile.setStoredPath(pathToBackup)
-                # indexFile.write(f"{currFile.getAll()}\n")
+                if (len(index.keys()) != 0):
+                    indexSearchResult = index.get(currFile.st_ino,None)
+                    if (indexSearchResult != None):
+                        if (currFile.st_mtime_ns > indexSearchResult.st_mtime_ns):
+                            indexWrite.append(currFile.getIndexPrint())
+                            copyOperations.append(currFile.real_path + ',' + currFile.stored_path)
+                            copyOperationsSize += currFile.st_size
+                        elif (currFile.st_mtime_ns == indexSearchResult.st_mtime_ns):
+                            indexWrite.append(indexSearchResult.getIndexPrint())
+                    else:
+                        indexWrite.append(currFile.getIndexPrint())
+                        copyOperations.append(currFile.real_path + ',' + currFile.stored_path)
+                        copyOperationsSize += currFile.st_size
+                else:
+                    indexWrite.append(currFile.getIndexPrint())
+                    copyOperations.append(currFile.real_path + ',' + currFile.stored_path)
+                    copyOperationsSize += currFile.st_size
             else:
-                print(f"FileNotFoundError: {fullPath}")
-        # indexFile.close()
-    
+                # handle file not found error (should continue if the file does not exist)
+                print('FileNotFoundError:', fullPath)
+   
     return {
         'numOfDirectories': numOfDirectories,
         'numOfFiles': numOfFiles,
