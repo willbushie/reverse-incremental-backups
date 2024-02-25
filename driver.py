@@ -79,6 +79,7 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
                 print('FileNotFoundError:', fullPath)
    
     writeToIndex(pathToIndex,indexWrites)
+    copyFiles(copyOperations)
 
     return {
         'numOfDirectories': numOfDirectories,
@@ -105,6 +106,21 @@ def writeToIndex(path,data):
         file.write(line + '\n')
     
     file.close()
+
+def copyFiles(operations):
+    """
+    Conduct all copy operations held within a list.
+    @param operations - List containing "<original path>,<stored path>" strings.
+    Note: On Windows, some metadata will not be retained. See [here](https://docs.python.org/3/library/shutil.html) for more information.
+    """
+    for copy in operations:
+        operationList = copy.split(',')
+        source = operationList[0]
+        destination = operationList[1]
+        destPathHead = os.path.split(destination)
+        print(f"destination path head: {destPathHead[0]}")
+        os.makedirs(destPathHead[0],exist_ok=True)
+        shutil.copy2(source,destination)
 
 def logger(logFile, message=''):
     """
