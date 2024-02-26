@@ -101,7 +101,9 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
                 # handle file not found error (should continue if the file does not exist)
                 print('FileNotFoundError:', fullPath)
    
+    logger('Write updates to index.')
     writeToIndex(pathToIndex,indexWrites)
+    logger(f"Copy files to backup destination ({round(copyOperations/1000000,3)} MB)")
     copyFiles(copyOperations)
 
     return {
@@ -166,10 +168,12 @@ def main():
     start = time.time()
     
     # conduct backup procedure
+    logger('Reading preferences file')
     usrPrefs = readPreferences('preferences.txt')
     originalPath = Path(usrPrefs.get('originalPath'))
     backupPath = Path(usrPrefs.get('backupPath'))
     indexPath = Path(usrPrefs.get('indexPath'))
+    logger('Begin backup process')
     print(f"usrPrefs: {originalPath}, {backupPath}, {indexPath}")
     backupResults = backup(originalPath,backupPath,indexPath)
     
