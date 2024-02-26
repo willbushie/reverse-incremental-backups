@@ -7,6 +7,29 @@ import shutil
 
 from file import File
 
+def readPreferences(path):
+    """
+    Read backup specific preferences file & return map.
+    @param path - Path to the preferences file. 
+    @return - Map containing the user preferences. 
+    """
+    preferences = {}
+
+    try:
+        prefFile = open(path,'r')
+        for line in prefFile:
+            if (line != '\n' and line.startswith('#') == False):
+                splitLine = line.split('=')
+                preferences.update({splitLine[0]:splitLine[1].strip('\n')})
+            elif (line.startswith('#')):
+                continue
+    except (FileNotFoundError):
+        return preferences
+    finally:
+        prefFile.close()
+    
+    return preferences
+
 def readIndex(path):
     """
     Read the current index file, creating File objects and adding them to an
@@ -143,9 +166,11 @@ def main():
     start = time.time()
     
     # conduct backup procedure
-    originalPath = Path('./test env/original')
-    backupPath = Path('./test env/backup')
-    indexPath = Path('./index.txt')
+    usrPrefs = readPreferences('preferences.txt')
+    originalPath = Path(usrPrefs.get('originalPath'))
+    backupPath = Path(usrPrefs.get('backupPath'))
+    indexPath = Path(usrPrefs.get('indexPath'))
+    print(f"usrPrefs: {originalPath}, {backupPath}, {indexPath}")
     backupResults = backup(originalPath,backupPath,indexPath)
     
     end = time.time()
