@@ -118,29 +118,28 @@ def copyFiles(operations):
         source = operationList[0]
         destination = operationList[1]
         destPathHead = os.path.split(destination)
-        print(f"destination path head: {destPathHead[0]}")
         os.makedirs(destPathHead[0],exist_ok=True)
         shutil.copy2(source,destination)
 
-def logger(logFile, message=''):
+def logger(message=''):
     """
     Send a message to a specific log file.
-    @param logFile - File to write the log to.
     @param message (optional) - message to include in the log.
     """
     currTime = datetime.datetime.now()
-    timestampString = f"[{currTime.strftime("%Y-%m-%d %H:%M:%S %z")}]"
-    file = open(logFile,'w')
-    file.write(f"{timestampString} {message}")
+    # timestampString = f"[{currTime.strftime("%Y-%m-%d %H:%M:%S %z")}]" # UTC offset does not display
+    timestampString = f"[{currTime.strftime("%Y-%m-%d %H:%M:%S")}]"
+    file = open('backup.log','a+')
+    file.write(f"{timestampString} {message}\n")
     file.close()
-    print('logger called and completed')
 
 def main():
     """
     Only method to be called.
     """
-    print("MAIN METHOD STARTING----\n")
+    open('backup.log','w').close()
 
+    logger('MAIN METHOD STARTING')
     start = time.time()
     
     # conduct backup procedure
@@ -151,12 +150,16 @@ def main():
     
     end = time.time()
 
-    # show program statitics
-    print('\nPROGRAM STATISTICS-----')
-    print(f"total files found: {backupResults.get('numOfFiles')}")
-    print(f"total directories found: {backupResults.get('numOfDirectories')}")
-    print(f"total size of all files found: {backupResults.get('totalSize')} bytes ({round(backupResults.get('totalSize')/1000000,2)} MB | {round(backupResults.get('totalSize')/1000000000,2)} GB)")
-    print(f"program execution time: {round(end - start, 3)} (Seconds)")
-    print("MAIN METHOD COMPLETED----")
+    # show program statistics
+    numOfFiles = f"Total Files Found: {backupResults.get('numOfFiles')}"
+    numOfDirectories = f"Total Directories Found: {backupResults.get('numOfDirectories')}"
+    totalSizeBytes = backupResults.get('totalSize')
+    totalSizeMegaBytes = round(totalSizeBytes/1000000,3)
+    totalSizeGigaBytes = round(totalSizeBytes/1000000000,3)
+    totalSize = f"Total Size Of Original Files: {totalSizeBytes} bytes | {totalSizeMegaBytes} MB | {totalSizeGigaBytes} GB"
+    totalTime = f"Total Program Execution Time: {round(end - start),3} Seconds"
+    logger(f"PROGRAM STATS:\n{numOfFiles}\n{numOfDirectories}\n{totalSize}\n{totalTime}")
+    
+    logger('MAIN METHOD COMPLETED')
 
 main()
