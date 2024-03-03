@@ -25,10 +25,9 @@ def readPreferences(path):
             elif (line.startswith('#')):
                 continue
     except (FileNotFoundError):
-        return preferences
-    finally:
-        prefFile.close()
+        raise FileNotFoundError
     
+    prefFile.close()
     return preferences
 
 def readIndex(path):
@@ -207,7 +206,12 @@ def main():
     
     # conduct backup procedure
     logger('Reading preferences file')
-    usrPrefs = readPreferences('preferences.txt')
+    try:
+        usrPrefs = readPreferences('preferences.txt')
+    except FileNotFoundError:
+        logger('Error reading preferences.txt. May be missing or is named incorrectly.')
+        print('Error reading preferences.txt. May be missing or is named incorrectly.')
+        exit()
     originalPath = Path(usrPrefs.get('originalPath'))
     backupPath = Path(usrPrefs.get('backupPath'))
     indexPath = Path(usrPrefs.get('indexPath'))
