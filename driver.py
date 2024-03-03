@@ -4,6 +4,7 @@ import time
 import os
 import datetime
 import shutil
+import traceback
 
 from file import File
 
@@ -85,26 +86,29 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
                     if (indexSearchResult != None):
                         if (currFile.st_mtime_ns > indexSearchResult.st_mtime_ns):
                             indexWrites.append(currFile.getIndexPrint())
-                            copyOperations.append(currFile.real_path + ',' + currFile.stored_path)
+                            copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
                             copyOperationsSize += currFile.st_size
                         elif (currFile.st_mtime_ns == indexSearchResult.st_mtime_ns):
-                            indexWrites.append(indexSearchResult.getIndexPrint())
+                            indexWrites.append(currFile.getIndexPrint())
                     else:
                         indexWrites.append(currFile.getIndexPrint())
-                        copyOperations.append(currFile.real_path + ',' + currFile.stored_path)
+                        copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
                         copyOperationsSize += currFile.st_size
                 else:
                     indexWrites.append(currFile.getIndexPrint())
-                    copyOperations.append(currFile.real_path + ',' + currFile.stored_path)
+                    copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
                     copyOperationsSize += currFile.st_size
             else:
                 # handle file not found error (should continue if the file does not exist)
-                print('FileNotFoundError:', fullPath)
+                # print('FileNotFoundError:', fullPath)
+                logger(f"backup() > FileNotFoundError: {fullPath}")
    
     logger('Write updates to index.')
     writeToIndex(pathToIndex,indexWrites)
-    logger(f"Copy files to backup destination ({round(copyOperations/1000000,3)} MB)")
-    copyFiles(copyOperations)
+    logger(f"Copy files to backup destination ({round(copyOperationsSize/1000000,3)} MB)")
+    copyStatDirs = copyFiles(copyOperations)
+    copyDirStats(copyStatDirs)
+
 
     return {
         'numOfDirectories': numOfDirectories,
@@ -136,15 +140,49 @@ def copyFiles(operations):
     """
     Conduct all copy operations held within a list.
     @param operations - List containing "<original path>,<stored path>" strings.
+    @return - Map containing the source and destinations for directory attribute copies to occur.
     Note: On Windows, some metadata will not be retained. See [here](https://docs.python.org/3/library/shutil.html) for more information.
     """
+    copyStatDirs = {}
+    operationsNum = len(operations)
+    operationsCompleted = 0
+
     for copy in operations:
-        operationList = copy.split(',')
+        operationList = copy.split('{copy-operation-separator}')
         source = operationList[0]
         destination = operationList[1]
+        sourcePathHead = os.path.split(source)
         destPathHead = os.path.split(destination)
-        os.makedirs(destPathHead[0],exist_ok=True)
-        shutil.copy2(source,destination)
+        try:
+            os.makedirs(destPathHead[0],exist_ok=True)
+            if (copyStatDirs.get(sourcePathHead[0],None) == None):
+                copyStatDirs.update({sourcePathHead[0]:destPathHead[0]})
+        except:
+            logger(f"copyFiles() > Error created directories | operationList: {operationList}")
+            traceback.print_exc()
+        try:
+            shutil.copy2(source,destination)
+            operationsCompleted += 1
+        except (FileNotFoundError):
+            logger(f"copyFiles() > FileNotFoundError: {source}")
+            continue
+        except (PermissionError):
+            logger(f"copyFiles() > PermissionError: {source}")
+            continue
+
+    logger(f"Operations Completed: {operationsCompleted}/{operationsNum}")
+    return copyStatDirs
+
+def copyDirStats(dirMap):
+    """
+    Copies directory stats/attributes from source dirs to destination dirs given a map. 
+    @param dirMap - Dictionary containing the sources and destinations for copying (syncing) dir stats.
+    """
+    keys = dirMap.keys()
+    for key in keys:
+        currVal = dirMap.get(key)
+        shutil.copystat(key,currVal)
+
 
 def logger(message=''):
     """
@@ -153,7 +191,7 @@ def logger(message=''):
     """
     currTime = datetime.datetime.now()
     # timestampString = f"[{currTime.strftime("%Y-%m-%d %H:%M:%S %z")}]" # UTC offset does not display
-    timestampString = f"[{currTime.strftime("%Y-%m-%d %H:%M:%S")}]"
+    timestampString = f"[{currTime.strftime('%Y-%m-%d %H:%M:%S')}]"
     file = open('backup.log','a+')
     file.write(f"{timestampString} {message}\n")
     file.close()
@@ -174,21 +212,21 @@ def main():
     backupPath = Path(usrPrefs.get('backupPath'))
     indexPath = Path(usrPrefs.get('indexPath'))
     logger('Begin backup process')
-    print(f"usrPrefs: {originalPath}, {backupPath}, {indexPath}")
-    backupResults = backup(originalPath,backupPath,indexPath)
-    
-    end = time.time()
+    try:
+        backupResults = backup(originalPath,backupPath,indexPath)
+        end = time.time()
+        numOfFiles = f"Total Files Found: {backupResults.get('numOfFiles')}"
+        numOfDirectories = f"Total Directories Found: {backupResults.get('numOfDirectories')}"
+        totalSizeBytes = backupResults.get('totalSize')
+        totalSizeMegaBytes = round(totalSizeBytes/1000000,3)
+        totalSizeGigaBytes = round(totalSizeBytes/1000000000,3)
+        totalSize = f"Total Size Of Original Files: {totalSizeBytes} bytes | {totalSizeMegaBytes} MB | {totalSizeGigaBytes} GB"
+        totalTime = f"Total Program Execution Time: {round(end - start,3)} Seconds"
+        logger(f"PROGRAM STATS:\n{numOfFiles}\n{numOfDirectories}\n{totalSize}\n{totalTime}")
+    except:
+        logger(f"Backup failed due to an error")
+        traceback.print_exc()
 
-    # show program statistics
-    numOfFiles = f"Total Files Found: {backupResults.get('numOfFiles')}"
-    numOfDirectories = f"Total Directories Found: {backupResults.get('numOfDirectories')}"
-    totalSizeBytes = backupResults.get('totalSize')
-    totalSizeMegaBytes = round(totalSizeBytes/1000000,3)
-    totalSizeGigaBytes = round(totalSizeBytes/1000000000,3)
-    totalSize = f"Total Size Of Original Files: {totalSizeBytes} bytes | {totalSizeMegaBytes} MB | {totalSizeGigaBytes} GB"
-    totalTime = f"Total Program Execution Time: {round(end - start),3} Seconds"
-    logger(f"PROGRAM STATS:\n{numOfFiles}\n{numOfDirectories}\n{totalSize}\n{totalTime}")
-    
     logger('MAIN METHOD COMPLETED')
 
 main()
