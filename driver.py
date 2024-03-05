@@ -165,10 +165,10 @@ def copyFiles(operations):
             operationsCompleted += 1
         except (FileNotFoundError):
             logger(f"copyFiles() > FileNotFoundError: {source}")
-            continue
         except (PermissionError):
             logger(f"copyFiles() > PermissionError: {source}")
-            continue
+        except (shutil.SameFileError):
+            logger(f"copyFiles() > shutil.SameFileError: {source} {destination}")
 
     logger(f"Operations Completed: {operationsCompleted}/{operationsNum}")
     return copyStatDirs
