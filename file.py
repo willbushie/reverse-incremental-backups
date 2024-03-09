@@ -125,3 +125,18 @@ class File:
         returnStr = f"{self.st_ino},{self.st_mtime_ns},{self.real_path},{self.stored_path}"
 
         return returnStr
+
+    def newStoredPath(self, originalPath, backupPath, indexPath):
+        """
+        Returns true if the current file has been moved/renamed and the change needs to 
+        be reflected in the backup.
+        @param originalPath - The path leading to the original file location.
+        @param backupPath - The path leading to the root where the backup files are stored.
+        @param indexPath - The full stored path, read from the index.
+        @return boolean
+        """
+        commonPath = os.path.relpath(self.real_path,originalPath)
+        indexCommonPath = os.path.relpath(indexPath,backupPath)
+        if (commonPath != indexCommonPath):
+            return True
+        return False
