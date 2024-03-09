@@ -23,7 +23,7 @@ class IndexFile(File):
         returnMap.update({'st_ino':splitList[0]})
         returnMap.update({'st_mtime_ns':splitList[1]})
         returnMap.update({'real_path':splitList[2]})
-        returnMap.update({'stored_path':splitList[3]})
+        returnMap.update({'stored_path':splitList[3].strip('\n')})
 
         return returnMap
 
