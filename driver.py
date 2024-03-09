@@ -88,8 +88,10 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
                             indexWrites.append(currFile.getIndexPrint())
                             copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
                             copyOperationsSize += currFile.st_size
+                            index.pop(currFile.st_ino)
                         elif (currFile.st_mtime_ns == indexSearchResult.st_mtime_ns):
                             indexWrites.append(currFile.getIndexPrint())
+                            index.pop(currFile.st_ino)
                     else:
                         indexWrites.append(currFile.getIndexPrint())
                         copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
@@ -103,6 +105,8 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
                 # print('FileNotFoundError:', fullPath)
                 logger(f"backup() > FileNotFoundError: {fullPath}")
    
+    logger('Remove deleted files')
+    removeDeletedFiles(index)
     logger('Write updates to index.')
     writeToIndex(pathToIndex,indexWrites)
     logger(f"Copy files to backup destination ({round(copyOperationsSize/1000000,3)} MB)")
@@ -172,6 +176,15 @@ def copyFiles(operations):
 
     logger(f"Operations Completed: {operationsCompleted}/{operationsNum}")
     return copyStatDirs
+
+def removeDeletedFiles(index):
+    """
+    Remove deleted source files from the backup.
+    @param index - index dictionary created in backup()
+    """
+    files = index.values()
+    for indexFileObject in files:
+        os.remove(indexFileObject.stored_path)
 
 def copyDirStats(dirMap):
     """
