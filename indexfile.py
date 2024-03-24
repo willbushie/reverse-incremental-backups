@@ -17,7 +17,7 @@ class IndexFile(File):
         @param indexString - String read from the index file.
         @return - Return map with indexed file attributes.
         """
-        splitList = indexString.split(',')
+        splitList = indexString.split('[index-sep]')
         returnMap = {}
 
         returnMap.update({'st_ino':splitList[0]})
