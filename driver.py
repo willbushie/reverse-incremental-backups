@@ -78,7 +78,7 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
         numOfDirectories += 1
         for file_name in files:
             fullPath = Path(dirpath + '/' + file_name)
-            if (os.path.exists(fullPath)):
+            if (os.path.exists(fullPath) and os.path.islink(fullPath) == False):
                 numOfFiles += 1
                 currFile = File(fullPath)
                 currFile.setStoredPath(pathToOriginal,pathToBackup)
@@ -106,10 +106,10 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
                     indexWrites.append(currFile.getIndexPrint())
                     copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
                     copyOperationsSize += currFile.st_size
-            else:
-                # handle file not found error (should continue if the file does not exist)
-                # print('FileNotFoundError:', fullPath)
-                logger(f"backup() > FileNotFoundError: {fullPath}")
+            elif (os.path.exists(fullPath) and os.path.islink(fullPath) == True):
+                logger(f"backup() > Symlink Found: {fullPath}")
+            elif(os.path.exists(fullPath) == False):
+                logger(f"backup() > Path Does Not Exist: {fullPath}")
    
     logger('Remove deleted files')
     removeDeletedFiles(index)
