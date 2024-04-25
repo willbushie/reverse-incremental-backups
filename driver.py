@@ -14,6 +14,7 @@ def readPreferences(path):
     @param path - Path to the preferences file. 
     @return - Map containing the user preferences. 
     """
+    multipleFlag = False
     preferences = {}
 
     try:
@@ -24,6 +25,8 @@ def readPreferences(path):
                 preferences.update({splitLine[0]:splitLine[1].strip('\n')})
             elif (line.startswith('#')):
                 continue
+            elif (line.startswith('=')):
+                multipleFlag = True
     except (FileNotFoundError):
         raise FileNotFoundError
     
@@ -233,4 +236,7 @@ def main():
 
     logger('MAIN METHOD COMPLETED')
 
-main()
+# main()
+
+result = readPreferences('preferences.txt')
+print(f"result: {result}")
