@@ -12,26 +12,28 @@ def readPreferences(path):
     """
     Read backup specific preferences file & return map.
     @param path - Path to the preferences file. 
-    @return - Map containing the user preferences. 
+    @return - List containing the backup preference(s).
     """
-    multipleFlag = False
+    specialChars = ['\n', '#', '=']
+    preferencesList = []
     preferences = {}
 
     try:
         prefFile = open(path,'r')
         for line in prefFile:
-            if (line != '\n' and line.startswith('#') == False):
+            firstChar = line[0]
+            if (firstChar not in specialChars):
                 splitLine = line.split('=')
                 preferences.update({splitLine[0]:splitLine[1].strip('\n')})
-            elif (line.startswith('#')):
-                continue
-            elif (line.startswith('=')):
-                multipleFlag = True
+            elif (firstChar == '='):
+                preferencesList.append(preferences)
+                preferences.clear()
+        preferencesList.append(preferences)
     except (FileNotFoundError):
         raise FileNotFoundError
     
     prefFile.close()
-    return preferences
+    return preferencesList
 
 def readIndex(path):
     """
