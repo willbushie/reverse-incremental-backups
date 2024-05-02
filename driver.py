@@ -7,6 +7,7 @@ import shutil
 import traceback
 
 from file import File
+from backup_profile import Profile
 
 def readPreferences(path):
     """
@@ -29,6 +30,41 @@ def readPreferences(path):
     
     prefFile.close()
     return preferences
+
+def readProfiles(path):
+    """
+    Read backup profiles file & return a list of executable profiles,
+    in the order they are to be executed.
+    @param path - Path to the profile file. 
+    @return - Dictionary that contains a list of executable profiles
+    in addition to a list of all profiles.
+    """
+    specialChars = ['\n', '#', '=']
+    profiles = {'executable':[], 'all':[]}
+    profile = {}
+
+    try:
+        profileFile = open(path,'r')
+        for line in profileFile:
+            firstChar = line[0]
+            if (firstChar not in specialChars):
+                splitLine = line.split('=')
+                profile.update({splitLine[0]:splitLine[1].strip('\n')})
+            elif (firstChar == '='):
+                tempProfile = Profile(profile)
+                profiles.get('all').append(tempProfile)
+                if (tempProfile.executable == True):
+                    profiles.get('executable').append(tempProfile)
+                profile.clear()
+        tempProfile = Profile(profile)
+        profiles.get('all').append(tempProfile)
+        if (tempProfile.executable == True):
+            profiles.get('executable').append(tempProfile)
+    except (FileNotFoundError):
+        raise FileNotFoundError
+
+    profileFile.close()
+    return profiles
 
 def readIndex(path):
     """
@@ -202,38 +238,45 @@ def main():
     open('backup.log','w').close()
 
     logger('MAIN METHOD STARTING')
-    start = time.time()
+    programStart = time.time()
     
     # conduct backup procedure
     logger('Reading preferences file')
     try:
-        usrPrefs = readPreferences('preferences.txt')
+        # profiles = readProfiles('profiles.txt')
+        prefs = readPreferences('preferences.txt')
     except FileNotFoundError:
         logger('Error reading preferences.txt. May be missing or is named incorrectly.')
         print('Error reading preferences.txt. May be missing or is named incorrectly.')
         exit()
-    originalPath = Path(usrPrefs.get('originalPath'))
-    backupPath = Path(usrPrefs.get('backupPath'))
-    indexPath = Path(usrPrefs.get('indexPath'))
-    logger('Begin backup process')
     try:
-        backupResults = backup(originalPath,backupPath,indexPath)
-        end = time.time()
-        numOfFiles = f"Total Files Found: {backupResults.get('numOfFiles')}"
-        numOfDirectories = f"Total Directories Found: {backupResults.get('numOfDirectories')}"
-        totalSizeBytes = backupResults.get('totalSize')
-        totalSizeMegaBytes = round(totalSizeBytes/1000000,3)
-        totalSizeGigaBytes = round(totalSizeBytes/1000000000,3)
-        totalSize = f"Total Size Of Original Files: {totalSizeBytes} bytes | {totalSizeMegaBytes} MB | {totalSizeGigaBytes} GB"
-        totalTime = f"Total Program Execution Time: {round(end - start,3)} Seconds"
-        logger(f"PROGRAM STATS:\n{numOfFiles}\n{numOfDirectories}\n{totalSize}\n{totalTime}")
-    except:
-        logger(f"Backup failed due to an error")
-        traceback.print_exc()
+        profiles = readProfiles(prefs.get('profiles'))
+    except FileNotFoundError:
+        logger('Error reading profiles file. May be missing or is named incorrectly.')
+        print('Error reading profiles file. May be missing or is named incorrectly.')
+    for profile in profiles.get('executable'):
+        start = time.time()
+        originalPath = Path(profile.getOriginalPath())
+        backupPath = Path(profile.getBackupPath())
+        indexPath = Path(profile.getIndexPath())
+        logger(f"Begin backup process for profile {profile.getName()}")
+        try:
+            backupResults = backup(originalPath,backupPath,indexPath)
+            end = time.time()
+            numOfFiles = f"Total Files Found: {backupResults.get('numOfFiles')}"
+            numOfDirectories = f"Total Directories Found: {backupResults.get('numOfDirectories')}"
+            totalSizeBytes = backupResults.get('totalSize')
+            totalSizeMegaBytes = round(totalSizeBytes/1000000,3)
+            totalSizeGigaBytes = round(totalSizeBytes/1000000000,3)
+            totalSize = f"Total Size Of Original Files: {totalSizeBytes} bytes | {totalSizeMegaBytes} MB | {totalSizeGigaBytes} GB"
+            totalTime = f"Total Profile Execution Time: {round(end - start,3)} Seconds"
+            logger(f"PROFILE STATS:\n{numOfFiles}\n{numOfDirectories}\n{totalSize}\n{totalTime}")
+        except:
+            logger(f"Profile backup failed due to an error.")
+            traceback.print_exc()
 
+    programEnd = time.time()
+    logger(f"PROGRAM RUNTIME: {round(programEnd - programStart, 3)} Seconds")
     logger('MAIN METHOD COMPLETED')
 
-# main()
-
-result = readPreferences('preferences.txt')
-print(f"result: {result}")
+main()
