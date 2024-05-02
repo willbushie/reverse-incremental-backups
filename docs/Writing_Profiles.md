@@ -1,12 +1,12 @@
-# Writing Preferences
+# Writing Profiles
 
-The `preferences.txt` is central to setting up and conducting backups. Without it, the program would not function.
+The `profiles.txt` is central to setting up and conducting different/separate backups. Without it, the program would not function.
 
-The preferences file should be stored in the base directory of the application.
+The profile file should be listed in the preferences file. 
 
 ## Comments
 
-Comments are allowed in the preferences file.
+Comments are allowed in the profile file.
 
 ```
 # Any line that begins with a '#' will be ignored
@@ -14,9 +14,9 @@ Comments are allowed in the preferences file.
 ...
 ```
 
-## Separating Preferences
+## Separating Profiles
 
-If multiple backup setups are required, the preferences should be separated with a `=`.
+If multiple backup setups are required, the profiles should be separated with a `=`.
 
 ```
 # backup a
@@ -30,12 +30,13 @@ See [Multiple Setups Example](#multiple-backup-setups)
 
 ## Fields
 
-The complete list of fields available to place in a preferences file. These fields help the program determine where files are located and where to store backups.
+The complete list of fields available to place in a profile. These fields help the program determine where files are located and where to store backups, along with other important metadata.
 
 ### Required
 
-Without these required fields, the program would not run.
+Without these required fields, the program will not execute.
 
+- `name=` - User provided name for the backup.
 - `originalPath=` - The original path, where the source files are located.
 - `backupPath=` - The destination path, where the backup is stored.
 - `indexPath=` - The path to the directory containing the index file for a particular backup.
@@ -46,17 +47,17 @@ Without these required fields, the program would not run.
 
 These are optional fields that are not required for the program to run.
 
-- `name=` - User provided name for the backup.
-- `description=` - User provided description.
+- `description=` - User provided description. Helpful if more than one profile has the same name.
 
-## Example `preferences.txt` File
+## Example `profiles.txt` File
 
 ### Bare Minimum
 
-If only one backup setup is required, the below example should be everything needed in the preferences file.
+If only one backup setup is required, the below example should be everything needed in the profile file.
 
 ```
 # minimum required fields
+name=Work Backup
 originalPath=/home/Work Files
 backupPath=/mnt/Work Drive/Work Files Backup
 indexPath=/home/Work Files
@@ -64,7 +65,7 @@ indexPath=/home/Work Files
 
 ### Multiple Backup Setups
 
-If multiple backup setups are required, this example shows how to setup the preferences file. If multiple setups are being used, it is recommended to use the `name=` field. This will help distinguish between backups.
+If multiple backup setups are required, this example shows how to setup the profile file. If multiple setups are being used, it is recommended to use the `description=` field. This will help distinguish between backups.
 
 ```
 # multiple backups fields
