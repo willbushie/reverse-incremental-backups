@@ -10,12 +10,11 @@ from file import File
 
 def readPreferences(path):
     """
-    Read backup specific preferences file & return map.
-    @param path - Path to the preferences file. 
-    @return - List containing the backup preference(s).
+    Read the application preferences.
+    @param path - Path to preferences file.
+    @return - Dictionary containing the application preferences.
     """
-    specialChars = ['\n', '#', '=']
-    preferencesList = []
+    specialChars = ['\n', '#']
     preferences = {}
 
     try:
@@ -25,15 +24,11 @@ def readPreferences(path):
             if (firstChar not in specialChars):
                 splitLine = line.split('=')
                 preferences.update({splitLine[0]:splitLine[1].strip('\n')})
-            elif (firstChar == '='):
-                preferencesList.append(preferences)
-                preferences.clear()
-        preferencesList.append(preferences)
     except (FileNotFoundError):
         raise FileNotFoundError
     
     prefFile.close()
-    return preferencesList
+    return preferences
 
 def readIndex(path):
     """
