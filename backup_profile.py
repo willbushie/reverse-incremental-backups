@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 class Profile:
     def __init__(self, map):
@@ -37,9 +38,21 @@ class Profile:
         Returns true if the profile is executable in the current system setup.
         @return boolean
         """
+        self.createIndexFile()
+
         originalPathExists = os.path.exists(self.originalPath)
         backupPathExists = os.path.exists(self.originalPath)
         indexPathExists = os.path.exists(self.indexPath)
         if (originalPathExists == False or backupPathExists == False or indexPathExists == False):
             return False
         return True
+    
+    def createIndexFile(self):
+        """
+        Creates index file and parent path if it does not already exist.
+        """
+        fullPath = Path(self.indexPath)
+        dirPath = fullPath.parent
+        if not dirPath.exists():
+            dirPath.mkdir(parents=True, exist_ok=True)
+        fullPath.touch()
