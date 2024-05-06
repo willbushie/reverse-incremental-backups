@@ -7,29 +7,64 @@ import shutil
 import traceback
 
 from file import File
+from backup_profile import Profile
 
 def readPreferences(path):
     """
-    Read backup specific preferences file & return map.
-    @param path - Path to the preferences file. 
-    @return - Map containing the user preferences. 
+    Read the application preferences.
+    @param path - Path to preferences file.
+    @return - Dictionary containing the application preferences.
     """
+    specialChars = ['\n', '#']
     preferences = {}
 
     try:
         prefFile = open(path,'r')
         for line in prefFile:
-            if (line != '\n' and line.startswith('#') == False):
+            firstChar = line[0]
+            if (firstChar not in specialChars):
                 splitLine = line.split('=')
                 preferences.update({splitLine[0]:splitLine[1].strip('\n')})
-            elif (line.startswith('#')):
-                continue
     except (FileNotFoundError):
-        return preferences
-    finally:
-        prefFile.close()
+        raise FileNotFoundError
     
+    prefFile.close()
     return preferences
+
+def readProfiles(path):
+    """
+    Read backup profiles file & return a list of executable profiles,
+    in the order they are to be executed.
+    @param path - Path to the profile file. 
+    @return - Dictionary that contains a list of executable profiles
+    in addition to a list of all profiles.
+    """
+    specialChars = ['\n', '#', '=']
+    profiles = {'executable':[], 'all':[]}
+    profile = {}
+
+    try:
+        profileFile = open(path,'r')
+        for line in profileFile:
+            firstChar = line[0]
+            if (firstChar not in specialChars):
+                splitLine = line.split('=')
+                profile.update({splitLine[0]:splitLine[1].strip('\n')})
+            elif (firstChar == '='):
+                tempProfile = Profile(profile)
+                profiles.get('all').append(tempProfile)
+                if (tempProfile.executable == True):
+                    profiles.get('executable').append(tempProfile)
+                profile.clear()
+        tempProfile = Profile(profile)
+        profiles.get('all').append(tempProfile)
+        if (tempProfile.executable == True):
+            profiles.get('executable').append(tempProfile)
+    except (FileNotFoundError):
+        raise FileNotFoundError
+
+    profileFile.close()
+    return profiles
 
 def readIndex(path):
     """
@@ -53,13 +88,18 @@ def readIndex(path):
 
     return Index
 
-def backup(pathToOriginal,pathToBackup,pathToIndex):
+def backup(profile):
     """
     Conduct backup procedure.
-    @param pathToOriginal - Path to the files/directories to be backed up.
-    @param pathToBackup - Path to where the backups will be stored.
-    @param pathToIndex - Path to where the index file is store.
+    @param profile - Backup Profile object.
+    @return dict
     """
+    # profile attributes
+    indexPath = profile.getIndexPath()
+    originalPath = profile.getOriginalPath()
+    backupPath = profile.getBackupPath()
+    blacklist = profile.getBlacklist()
+
     # used for program statistics
     numOfDirectories = 0
     numOfFiles = 0
@@ -72,56 +112,50 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
     moveOperationsSize = 0
     indexWrites = []
 
-    index = readIndex(pathToIndex)
+    index = readIndex(indexPath)
 
-    for dirpath, dirnames, files in os.walk(pathToOriginal):
-        numOfDirectories += 1
-        for file_name in files:
-            fullPath = Path(dirpath + '/' + file_name)
-            if (os.path.exists(fullPath) and os.path.islink(fullPath) == False):
-                numOfFiles += 1
-                currFile = File(fullPath)
-                currFile.setStoredPath(pathToOriginal,pathToBackup)
-                totalSize += currFile.st_size
-                if (len(index.keys()) != 0):
-                    indexSearchResult = index.get(currFile.st_ino,None)
-                    if (indexSearchResult != None):
-                        if (currFile.st_mtime_ns > indexSearchResult.st_mtime_ns):
+    for dirpath, dirnames, files in os.walk(originalPath):
+        if (not any(path in dirpath for path in blacklist)):
+            numOfDirectories += 1
+            for file_name in files:
+                fullPath = Path(dirpath + '/' + file_name)
+                if (os.path.exists(fullPath)):
+                    numOfFiles += 1
+                    currFile = File(fullPath)
+                    currFile.setStoredPath(originalPath,backupPath)
+                    totalSize += currFile.st_size
+                    if (len(index.keys()) != 0):
+                        indexSearchResult = index.get(currFile.st_ino,None)
+                        if (indexSearchResult != None):
+                            if (currFile.st_mtime_ns > indexSearchResult.st_mtime_ns):
+                                indexWrites.append(currFile.getIndexPrint())
+                                copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
+                                copyOperationsSize += currFile.st_size
+                            elif (currFile.st_mtime_ns == indexSearchResult.st_mtime_ns):
+                                indexWrites.append(currFile.getIndexPrint())
+                        else:
                             indexWrites.append(currFile.getIndexPrint())
                             copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
                             copyOperationsSize += currFile.st_size
-                            index.pop(currFile.st_ino, None)
-                        elif (currFile.st_mtime_ns == indexSearchResult.st_mtime_ns):
-                            indexWrites.append(currFile.getIndexPrint())
-                            index.pop(currFile.st_ino, None)
-                        if (currFile.newStoredPath(pathToOriginal, pathToBackup, indexSearchResult.stored_path)):
-                            moveOperations.append(indexSearchResult.stored_path + '{move-op}' + currFile.stored_path)
-                            moveOperationsSize += currFile.st_size
-                            index.pop(currFile.st_ino, None)
                     else:
                         indexWrites.append(currFile.getIndexPrint())
                         copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
                         copyOperationsSize += currFile.st_size
                 else:
-                    indexWrites.append(currFile.getIndexPrint())
-                    copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
-                    copyOperationsSize += currFile.st_size
-            elif (os.path.exists(fullPath) and os.path.islink(fullPath) == True):
-                logger(f"backup() > Symlink Found: {fullPath}")
-            elif(os.path.exists(fullPath) == False):
-                logger(f"backup() > Path Does Not Exist: {fullPath}")
+                    # handle file not found error (should continue if the file does not exist)
+                    # print('FileNotFoundError:', fullPath)
+                    logger(f"backup() > FileNotFoundError: {fullPath}")
+        else:
+            del dirnames[:]
    
-    logger('Remove deleted files')
-    removeDeletedFiles(index)
     logger('Write updates to index.')
-    writeToIndex(pathToIndex,indexWrites)
+    writeToIndex(indexPath,indexWrites)
     logger(f"Move files to correct destinations ({round(moveOperationsSize/1000000,3)} MB)")
     moveFileStats = moveFiles(moveOperations)
     copyDirStats(moveFileStats)
     logger(f"Copy files to backup destination ({round(copyOperationsSize/1000000,3)} MB)")
     copyStatDirs = copyFiles(copyOperations)
     copyDirStats(copyStatDirs)
-
 
     return {
         'numOfDirectories': numOfDirectories,
@@ -262,30 +296,42 @@ def main():
     open('backup.log','w').close()
 
     logger('MAIN METHOD STARTING')
-    start = time.time()
+    programStart = time.time()
     
     # conduct backup procedure
     logger('Reading preferences file')
-    usrPrefs = readPreferences('preferences.txt')
-    originalPath = Path(usrPrefs.get('originalPath'))
-    backupPath = Path(usrPrefs.get('backupPath'))
-    indexPath = Path(usrPrefs.get('indexPath'))
-    logger('Begin backup process')
     try:
-        backupResults = backup(originalPath,backupPath,indexPath)
-        end = time.time()
-        numOfFiles = f"Total Files Found: {backupResults.get('numOfFiles')}"
-        numOfDirectories = f"Total Directories Found: {backupResults.get('numOfDirectories')}"
-        totalSizeBytes = backupResults.get('totalSize')
-        totalSizeMegaBytes = round(totalSizeBytes/1000000,3)
-        totalSizeGigaBytes = round(totalSizeBytes/1000000000,3)
-        totalSize = f"Total Size Of Original Files: {totalSizeBytes} bytes | {totalSizeMegaBytes} MB | {totalSizeGigaBytes} GB"
-        totalTime = f"Total Program Execution Time: {round(end - start,3)} Seconds"
-        logger(f"PROGRAM STATS:\n{numOfFiles}\n{numOfDirectories}\n{totalSize}\n{totalTime}")
-    except:
-        logger(f"Backup failed due to an error")
-        traceback.print_exc()
+        # profiles = readProfiles('profiles.txt')
+        prefs = readPreferences('preferences.txt')
+    except FileNotFoundError:
+        logger('Error reading preferences.txt. May be missing or is named incorrectly.')
+        print('Error reading preferences.txt. May be missing or is named incorrectly.')
+        exit()
+    try:
+        profiles = readProfiles(prefs.get('profiles'))
+    except FileNotFoundError:
+        logger('Error reading profiles file. May be missing or is named incorrectly.')
+        print('Error reading profiles file. May be missing or is named incorrectly.')
+    for profile in profiles.get('executable'):
+        start = time.time()
+        logger(f"Begin backup process for profile {profile.getName()}")
+        try:
+            backupResults = backup(profile)
+            end = time.time()
+            numOfFiles = f"Total Files Found: {backupResults.get('numOfFiles')}"
+            numOfDirectories = f"Total Directories Found: {backupResults.get('numOfDirectories')}"
+            totalSizeBytes = backupResults.get('totalSize')
+            totalSizeMegaBytes = round(totalSizeBytes/1000000,3)
+            totalSizeGigaBytes = round(totalSizeBytes/1000000000,3)
+            totalSize = f"Total Size Of Original Files: {totalSizeBytes} bytes | {totalSizeMegaBytes} MB | {totalSizeGigaBytes} GB"
+            totalTime = f"Total Profile Execution Time: {round(end - start,3)} Seconds"
+            logger(f"PROFILE STATS:\n{numOfFiles}\n{numOfDirectories}\n{totalSize}\n{totalTime}")
+        except:
+            logger(f"Profile backup failed due to an error.")
+            traceback.print_exc()
 
+    programEnd = time.time()
+    logger(f"PROGRAM RUNTIME: {round(programEnd - programStart, 3)} Seconds")
     logger('MAIN METHOD COMPLETED')
 
 main()
