@@ -109,7 +109,7 @@ class File:
         Determines the stored path for a File object and sets the instance's variable.
         @param originalPath - The path leading to the original file location.
         @param backupPath - The path leading to the root where the backup files are stored. 
-        @return string - Returns the self.store_path of the instance after setting it.
+        @return str
         """
         tail = os.path.relpath(self.real_path,originalPath)
         finalBackupPath = os.path.join(backupPath,tail)
@@ -122,7 +122,11 @@ class File:
         Return string containing all necessary data for writing to the index file.
         Format is: "{st_ino}[index-sep]{st_mtime_ns}[index-sep]{real_path}[index-sep]{store_path}"
         """
-        returnStr = f"{self.st_ino}[index-sep]{self.st_mtime_ns}[index-sep]{self.real_path}[index-sep]{self.stored_path}"
+        commaCount = self.real_path.count(',') + self.stored_path.count(',')
+        if (commaCount > 0):
+            returnStr = f"{self.st_ino}[index-sep]{self.st_mtime_ns}[index-sep]{self.real_path}[index-sep]{self.stored_path}"
+        else:
+            returnStr = f"{self.st_ino},{self.st_mtime_ns},{self.real_path},{self.stored_path}"
 
         return returnStr
 
@@ -133,7 +137,7 @@ class File:
         @param originalPath - The path leading to the original file location.
         @param backupPath - The path leading to the root where the backup files are stored.
         @param indexPath - The full stored path, read from the index.
-        @return boolean
+        @return bool
         """
         commonPath = os.path.relpath(self.real_path,originalPath)
         indexCommonPath = os.path.relpath(indexPath,backupPath)

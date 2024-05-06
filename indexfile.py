@@ -15,11 +15,16 @@ class IndexFile(File):
         """
         Creates a map from the passed string, read from the index file.
         @param indexString - String read from the index file.
-        @return - Return map with indexed file attributes.
+        @return - dict
         """
-        splitList = indexString.split('[index-sep]')
-        returnMap = {}
+        separatorString = '[index-sep]'
+        separatorCount = indexString.count(separatorString)
+        if (separatorCount > 0):
+            splitList = indexString.split(separatorString)
+        else:
+            splitList = indexString.split(',')
 
+        returnMap = {}
         returnMap.update({'st_ino':splitList[0]})
         returnMap.update({'st_mtime_ns':splitList[1]})
         returnMap.update({'real_path':splitList[2]})
