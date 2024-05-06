@@ -88,13 +88,18 @@ def readIndex(path):
 
     return Index
 
-def backup(pathToOriginal,pathToBackup,pathToIndex):
+def backup(profile):
     """
     Conduct backup procedure.
-    @param pathToOriginal - Path to the files/directories to be backed up.
-    @param pathToBackup - Path to where the backups will be stored.
-    @param pathToIndex - Path to where the index file is store.
+    @param profile - Backup Profile object.
+    @return dict
     """
+    # profile attributes
+    indexPath = profile.getIndexPath()
+    originalPath = profile.getOriginalPath()
+    backupPath = profile.getBackupPath()
+    blacklist = profile.getBlacklist()
+
     # used for program statistics
     numOfDirectories = 0
     numOfFiles = 0
@@ -105,45 +110,47 @@ def backup(pathToOriginal,pathToBackup,pathToIndex):
     copyOperationsSize = 0
     indexWrites = []
 
-    index = readIndex(pathToIndex)
+    index = readIndex(indexPath)
 
-    for dirpath, dirnames, files in os.walk(pathToOriginal):
-        numOfDirectories += 1
-        for file_name in files:
-            fullPath = Path(dirpath + '/' + file_name)
-            if (os.path.exists(fullPath)):
-                numOfFiles += 1
-                currFile = File(fullPath)
-                currFile.setStoredPath(pathToOriginal,pathToBackup)
-                totalSize += currFile.st_size
-                if (len(index.keys()) != 0):
-                    indexSearchResult = index.get(currFile.st_ino,None)
-                    if (indexSearchResult != None):
-                        if (currFile.st_mtime_ns > indexSearchResult.st_mtime_ns):
+    for dirpath, dirnames, files in os.walk(originalPath):
+        if (not any(path in dirpath for path in blacklist)):
+            numOfDirectories += 1
+            for file_name in files:
+                fullPath = Path(dirpath + '/' + file_name)
+                if (os.path.exists(fullPath)):
+                    numOfFiles += 1
+                    currFile = File(fullPath)
+                    currFile.setStoredPath(originalPath,backupPath)
+                    totalSize += currFile.st_size
+                    if (len(index.keys()) != 0):
+                        indexSearchResult = index.get(currFile.st_ino,None)
+                        if (indexSearchResult != None):
+                            if (currFile.st_mtime_ns > indexSearchResult.st_mtime_ns):
+                                indexWrites.append(currFile.getIndexPrint())
+                                copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
+                                copyOperationsSize += currFile.st_size
+                            elif (currFile.st_mtime_ns == indexSearchResult.st_mtime_ns):
+                                indexWrites.append(currFile.getIndexPrint())
+                        else:
                             indexWrites.append(currFile.getIndexPrint())
                             copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
                             copyOperationsSize += currFile.st_size
-                        elif (currFile.st_mtime_ns == indexSearchResult.st_mtime_ns):
-                            indexWrites.append(currFile.getIndexPrint())
                     else:
                         indexWrites.append(currFile.getIndexPrint())
                         copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
                         copyOperationsSize += currFile.st_size
                 else:
-                    indexWrites.append(currFile.getIndexPrint())
-                    copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
-                    copyOperationsSize += currFile.st_size
-            else:
-                # handle file not found error (should continue if the file does not exist)
-                # print('FileNotFoundError:', fullPath)
-                logger(f"backup() > FileNotFoundError: {fullPath}")
+                    # handle file not found error (should continue if the file does not exist)
+                    # print('FileNotFoundError:', fullPath)
+                    logger(f"backup() > FileNotFoundError: {fullPath}")
+        else:
+            del dirnames[:]
    
     logger('Write updates to index.')
-    writeToIndex(pathToIndex,indexWrites)
+    writeToIndex(indexPath,indexWrites)
     logger(f"Copy files to backup destination ({round(copyOperationsSize/1000000,3)} MB)")
     copyStatDirs = copyFiles(copyOperations)
     copyDirStats(copyStatDirs)
-
 
     return {
         'numOfDirectories': numOfDirectories,
@@ -256,12 +263,9 @@ def main():
         print('Error reading profiles file. May be missing or is named incorrectly.')
     for profile in profiles.get('executable'):
         start = time.time()
-        originalPath = Path(profile.getOriginalPath())
-        backupPath = Path(profile.getBackupPath())
-        indexPath = Path(profile.getIndexPath())
         logger(f"Begin backup process for profile {profile.getName()}")
         try:
-            backupResults = backup(originalPath,backupPath,indexPath)
+            backupResults = backup(profile)
             end = time.time()
             numOfFiles = f"Total Files Found: {backupResults.get('numOfFiles')}"
             numOfDirectories = f"Total Directories Found: {backupResults.get('numOfDirectories')}"

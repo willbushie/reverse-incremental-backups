@@ -18,8 +18,29 @@ class Profile:
             raise KeyError(f'Missing Profile Attributes: {missingAttributes}')
         # optional profile attributes
         self.description = map.get('description')
+        self.blacklist = self.generateBlacklist(map.get('blacklist'))
         # generated attributes
         self.executable = self.isExecutable()
+
+    def generateBlacklist(self, blacklistString):
+        """
+        Generate a list of files/directories to avoid from a string.
+        @param blacklistString - String from profiles that lists items to blacklist.
+        @param list
+        """
+        originalPathItems = os.listdir(self.originalPath)
+        blacklist = []
+        if (blacklistString != None):
+            items = blacklistString.split(',')
+            for item in items:
+                if (item in originalPathItems):
+                    fullPath = os.path.join(self.originalPath, item)
+                    dir = os.path.basename(fullPath)
+                    blacklist.append(dir)
+                else:
+                    # make user aware of non-existent path?
+                    continue
+        return blacklist
 
     def getName(self):
         return self.name
@@ -32,6 +53,22 @@ class Profile:
     
     def getIndexPath(self):
         return self.indexPath
+    
+    def getBlacklist(self):
+        return self.blacklist
+    
+    def getRequired(self):
+        """
+        Returns dictionary of required profile attributes.
+        @return dict
+        """
+        returnDict = {
+            'Name': self.name,
+            'Original Path': self.originalPath,
+            'Backup Path': self.backupPath,
+            'Index Path': self.indexPath
+        }
+        return returnDict
 
     def isExecutable(self):
         """

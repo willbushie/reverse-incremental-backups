@@ -48,6 +48,7 @@ Without these required fields, the program will not execute.
 These are optional fields that are not required for the program to run.
 
 - `description=` - User provided description. Helpful if more than one profile has the same name.
+- `blacklist=` - Child directories of the source directory to avoid backing up.
 
 ## Example `profiles.txt` File
 
@@ -84,3 +85,19 @@ originalPath=/home/Photography/Photos
 backupPath=/mnt/Photography USB/Photos Backup
 indexPath=/mnt/Photography USB/Photos Backup
 ```
+
+### Blacklist
+
+Sometimes child directories may not need to be included in the backup. Placing these directories in the blacklist will ensure they are skipped.
+
+In the below example, the original path is `/home/Photos`. Looking at the blacklist, the child paths `/home/Photos/Private` and `/home/Photos/Cats` will be skipped, and not backed up. This is a list of directories, separated by a comma, with no additional spaces (unless the directory name contains spaces).
+
+```
+name=Personal Photos
+originalPath=/home/Photos
+backupPath=/mnt/USB Drive/Photos Backup
+indexPath=/home/Photos
+blacklist=Private,Cats
+```
+
+*Note: Files placed in the blacklist will not be handled properly and may cause errors.*
