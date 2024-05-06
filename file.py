@@ -120,8 +120,23 @@ class File:
     def getIndexPrint(self):
         """
         Return string containing all necessary data for writing to the index file.
-        Format is: "{st_ino},{st_mtime_ns},{real_path},{store_path}"
+        Format is: "{st_ino}[index-sep]{st_mtime_ns}[index-sep]{real_path}[index-sep]{store_path}"
         """
-        returnStr = f"{self.st_ino},{self.st_mtime_ns},{self.real_path},{self.stored_path}"
+        returnStr = f"{self.st_ino}[index-sep]{self.st_mtime_ns}[index-sep]{self.real_path}[index-sep]{self.stored_path}"
 
         return returnStr
+
+    def newStoredPath(self, originalPath, backupPath, indexPath):
+        """
+        Returns true if the current file has been moved/renamed and the change needs to 
+        be reflected in the backup.
+        @param originalPath - The path leading to the original file location.
+        @param backupPath - The path leading to the root where the backup files are stored.
+        @param indexPath - The full stored path, read from the index.
+        @return boolean
+        """
+        commonPath = os.path.relpath(self.real_path,originalPath)
+        indexCommonPath = os.path.relpath(indexPath,backupPath)
+        if (commonPath != indexCommonPath):
+            return True
+        return False

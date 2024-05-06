@@ -108,6 +108,8 @@ def backup(profile):
     # used to store future operations
     copyOperations = []
     copyOperationsSize = 0
+    moveOperations = []
+    moveOperationsSize = 0
     indexWrites = []
 
     index = readIndex(indexPath)
@@ -148,6 +150,9 @@ def backup(profile):
    
     logger('Write updates to index.')
     writeToIndex(indexPath,indexWrites)
+    logger(f"Move files to correct destinations ({round(moveOperationsSize/1000000,3)} MB)")
+    moveFileStats = moveFiles(moveOperations)
+    copyDirStats(moveFileStats)
     logger(f"Copy files to backup destination ({round(copyOperationsSize/1000000,3)} MB)")
     copyStatDirs = copyFiles(copyOperations)
     copyDirStats(copyStatDirs)
@@ -178,6 +183,43 @@ def writeToIndex(path,data):
     
     file.close()
 
+def moveFiles(operations):
+    """
+    Conduct all move operations in the backup location (to match source location).
+    @param operations - List containing "<old stored path>,<new stored path>" strings.
+    @return - Map containing the source and destinations for directory attributes copies to occur.
+    Note: On Windows, some metadata will not be retained. See [here](https://docs.python.org/3/library/shutil.html) for more information.
+    """
+    moveStatsDirs = {}
+    operationsNum = len(operations)
+    operationsCompleted = 0
+
+    for move in operations:
+        operationList = move.split('{move-op}')
+        oldStoredLoc = operationList[0]
+        newStoredLoc = operationList[1]
+        oldStoredLocHead = os.path.split(oldStoredLoc)[0]
+        newStoredLocHead = os.path.split(newStoredLoc)[0]
+        try:
+            os.makedirs(newStoredLocHead,exist_ok=True)
+            if (moveStatsDirs.get(oldStoredLoc,None) == None):
+                moveStatsDirs.update({oldStoredLocHead:newStoredLocHead})
+        except:
+            logger(f"moveFiles() > Error creating directories | move: {move}")
+            traceback.print_exc()
+        try:
+            shutil.move(oldStoredLoc,newStoredLoc)
+            operationsCompleted += 1
+        except (FileNotFoundError):
+            logger(f"moveFiles() > FileNotFoundError: {newStoredLoc}")
+            continue
+        except (PermissionError):
+            logger(f"moveFiles() > PermissionError: {newStoredLoc}")
+            continue
+    
+    logger(f"Move Operations Completed {operationsCompleted}/{operationsNum}")
+    return moveStatsDirs
+
 def copyFiles(operations):
     """
     Conduct all copy operations held within a list.
@@ -207,13 +249,22 @@ def copyFiles(operations):
             operationsCompleted += 1
         except (FileNotFoundError):
             logger(f"copyFiles() > FileNotFoundError: {source}")
-            continue
         except (PermissionError):
             logger(f"copyFiles() > PermissionError: {source}")
-            continue
+        except (shutil.SameFileError):
+            logger(f"copyFiles() > shutil.SameFileError: {source} {destination}")
 
-    logger(f"Operations Completed: {operationsCompleted}/{operationsNum}")
+    logger(f"Copy Operations Completed: {operationsCompleted}/{operationsNum}")
     return copyStatDirs
+
+def removeDeletedFiles(index):
+    """
+    Remove deleted source files from the backup.
+    @param index - index dictionary created in backup()
+    """
+    files = index.values()
+    for indexFileObject in files:
+        os.remove(indexFileObject.stored_path)
 
 def copyDirStats(dirMap):
     """
