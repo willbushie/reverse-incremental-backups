@@ -8,6 +8,7 @@ import traceback
 
 from file import File
 from backup_profile import Profile
+from tracker import Tracker
 
 def readPreferences(path):
     """
@@ -114,11 +115,12 @@ def backup(profile):
 
     index = readIndex(indexPath)
     indexCount = len(index)
+    tracker = Tracker(indexCount)
 
     print('Walking through files...')
     for dirpath, dirnames, files in os.walk(originalPath):
         if (indexCount > 0):
-            progressBar(indexCount, numOfFiles, label='Files')
+            tracker.progressBar(numOfFiles)
         else:
             print(f"{numOfFiles} Files Found", end='\r')
         if (not any(path in dirpath for path in blacklist)):
@@ -155,7 +157,8 @@ def backup(profile):
             del dirnames[:]
     
     if (indexCount > 0):
-        progressBar(indexCount, numOfFiles, label='Files', complete=True)
+        tracker.setComplete()
+        tracker.progressBar(numOfFiles)
     else:
         print(f"{numOfFiles} Files Found {' ' * 10}")
    
@@ -243,10 +246,11 @@ def copyFiles(operations, size):
     operationsNum = len(operations)
     operationsCompleted = 0
     currSizeComplete = 0
+    tracker = Tracker(size)
 
     print('Copying files...')
     for copy in operations:
-        progressBar(round(size/1000,2),round(currSizeComplete/1000,2),label='KB')
+        tracker.progressBar(currSizeComplete, data=True)
         paths = copy.get('paths')
         operationList = paths.split('{copy-operation-separator}')
         source = operationList[0]
@@ -271,7 +275,8 @@ def copyFiles(operations, size):
         except (shutil.SameFileError):
             logger(f"copyFiles() > shutil.SameFileError: {source} {destination}")
 
-    progressBar(round(size/1000,2),round(currSizeComplete/1000,2),label='KB', complete=True)
+    tracker.setComplete()
+    tracker.progressBar(currSizeComplete, data=True)
     logger(f"Copy Operations Completed: {operationsCompleted}/{operationsNum}")
     return copyStatDirs
 
@@ -294,20 +299,6 @@ def copyDirStats(dirMap):
     for key in keys:
         currVal = dirMap.get(key)
         shutil.copystat(key,currVal)
-
-def progressBar(total, current, label='', complete=False):
-    """
-    Show a progress bar for amount of data moving/copying.
-    @param total - Total copy/move data amount (in MB).
-    @param current - Current total of copied/moved data amount (in MB).
-    """
-    barLength = 30
-    filledLength = int(barLength * current / total)
-    bar = ('=' * filledLength) + ' ' * (barLength - filledLength)
-    if (complete):
-        print(f"[{'=' * 30}] {total}/{total} {label} (100.0%) {' ' * 20}")
-    else:
-        print(f"[{bar}] {current}/{total} {label} ({round((current/total) * 100,1)}%) {' ' * 20}", end='\r')
 
 def logger(message=''):
     """
