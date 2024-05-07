@@ -75,7 +75,10 @@ class Profile:
         Returns true if the profile is executable in the current system setup.
         @return boolean
         """
-        self.createIndexFile()
+        try:
+            self.createIndexFile()
+        except PermissionError:
+            return False
 
         originalPathExists = os.path.exists(self.originalPath)
         backupPathExists = os.path.exists(self.originalPath)
