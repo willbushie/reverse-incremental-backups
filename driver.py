@@ -113,8 +113,14 @@ def backup(profile):
     indexWrites = []
 
     index = readIndex(indexPath)
+    indexCount = len(index)
 
+    print('Walking through files...')
     for dirpath, dirnames, files in os.walk(originalPath):
+        if (indexCount > 0):
+            progressBar(indexCount, numOfFiles, label='Files')
+        else:
+            print(f"{numOfFiles} Files Found", end='\r')
         if (not any(path in dirpath for path in blacklist)):
             numOfDirectories += 1
             for file_name in files:
@@ -129,17 +135,17 @@ def backup(profile):
                         if (indexSearchResult != None):
                             if (currFile.st_mtime_ns > indexSearchResult.st_mtime_ns):
                                 indexWrites.append(currFile.getIndexPrint())
-                                copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
+                                copyOperations.append({'paths':currFile.real_path + '{copy-operation-separator}' + currFile.stored_path,'size':currFile.st_size})
                                 copyOperationsSize += currFile.st_size
                             elif (currFile.st_mtime_ns == indexSearchResult.st_mtime_ns):
                                 indexWrites.append(currFile.getIndexPrint())
                         else:
                             indexWrites.append(currFile.getIndexPrint())
-                            copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
+                            copyOperations.append({'paths':currFile.real_path + '{copy-operation-separator}' + currFile.stored_path,'size':currFile.st_size})
                             copyOperationsSize += currFile.st_size
                     else:
                         indexWrites.append(currFile.getIndexPrint())
-                        copyOperations.append(currFile.real_path + '{copy-operation-separator}' + currFile.stored_path)
+                        copyOperations.append({'paths':currFile.real_path + '{copy-operation-separator}' + currFile.stored_path,'size':currFile.st_size})
                         copyOperationsSize += currFile.st_size
                 else:
                     # handle file not found error (should continue if the file does not exist)
@@ -147,6 +153,11 @@ def backup(profile):
                     logger(f"backup() > FileNotFoundError: {fullPath}")
         else:
             del dirnames[:]
+    
+    if (indexCount > 0):
+        progressBar(indexCount, numOfFiles, label='Files', complete=True)
+    else:
+        print(f"{numOfFiles} Files Found {' ' * 10}")
    
     logger('Write updates to index.')
     writeToIndex(indexPath,indexWrites)
@@ -154,7 +165,7 @@ def backup(profile):
     moveFileStats = moveFiles(moveOperations)
     copyDirStats(moveFileStats)
     logger(f"Copy files to backup destination ({round(copyOperationsSize/1000000,3)} MB)")
-    copyStatDirs = copyFiles(copyOperations)
+    copyStatDirs = copyFiles(copyOperations, copyOperationsSize)
     copyDirStats(copyStatDirs)
 
     return {
@@ -220,19 +231,24 @@ def moveFiles(operations):
     logger(f"Move Operations Completed {operationsCompleted}/{operationsNum}")
     return moveStatsDirs
 
-def copyFiles(operations):
+def copyFiles(operations, size):
     """
     Conduct all copy operations held within a list.
-    @param operations - List containing "<original path>,<stored path>" strings.
-    @return - Map containing the source and destinations for directory attribute copies to occur.
+    @param operations - List containing "<original path>{custom-separator}<stored path>" strings.
+    @param size - Int of bytes for total copy operations.
+    @return - Dict containing the source and destinations for directory attribute copies to occur.
     Note: On Windows, some metadata will not be retained. See [here](https://docs.python.org/3/library/shutil.html) for more information.
     """
     copyStatDirs = {}
     operationsNum = len(operations)
     operationsCompleted = 0
+    currSizeComplete = 0
 
+    print('Copying files...')
     for copy in operations:
-        operationList = copy.split('{copy-operation-separator}')
+        progressBar(round(size/1000,2),round(currSizeComplete/1000,2),label='KB')
+        paths = copy.get('paths')
+        operationList = paths.split('{copy-operation-separator}')
         source = operationList[0]
         destination = operationList[1]
         sourcePathHead = os.path.split(source)
@@ -247,6 +263,7 @@ def copyFiles(operations):
         try:
             shutil.copy2(source,destination)
             operationsCompleted += 1
+            currSizeComplete += copy.get('size')
         except (FileNotFoundError):
             logger(f"copyFiles() > FileNotFoundError: {source}")
         except (PermissionError):
@@ -254,6 +271,7 @@ def copyFiles(operations):
         except (shutil.SameFileError):
             logger(f"copyFiles() > shutil.SameFileError: {source} {destination}")
 
+    progressBar(round(size/1000,2),round(currSizeComplete/1000,2),label='KB', complete=True)
     logger(f"Copy Operations Completed: {operationsCompleted}/{operationsNum}")
     return copyStatDirs
 
@@ -269,13 +287,27 @@ def removeDeletedFiles(index):
 def copyDirStats(dirMap):
     """
     Copies directory stats/attributes from source dirs to destination dirs given a map. 
-    @param dirMap - Dictionary containing the sources and destinations for copying (syncing) dir stats.
+    @param dirMap - Dict containing the sources and destinations for copying (syncing) dir stats.
     """
+    print('Copying directory stats...')
     keys = dirMap.keys()
     for key in keys:
         currVal = dirMap.get(key)
         shutil.copystat(key,currVal)
 
+def progressBar(total, current, label='', complete=False):
+    """
+    Show a progress bar for amount of data moving/copying.
+    @param total - Total copy/move data amount (in MB).
+    @param current - Current total of copied/moved data amount (in MB).
+    """
+    barLength = 30
+    filledLength = int(barLength * current / total)
+    bar = ('=' * filledLength) + ' ' * (barLength - filledLength)
+    if (complete):
+        print(f"[{'=' * 30}] {total}/{total} {label} (100.0%) {' ' * 20}")
+    else:
+        print(f"[{bar}] {current}/{total} {label} ({round((current/total) * 100,1)}%) {' ' * 20}", end='\r')
 
 def logger(message=''):
     """
@@ -313,6 +345,7 @@ def main():
         logger('Error reading profiles file. May be missing or is named incorrectly.')
         print('Error reading profiles file. May be missing or is named incorrectly.')
     for profile in profiles.get('executable'):
+        print(f"Executing '{profile.getName()}' ({profiles.get('executable').index(profile) + 1}/{len(profiles.get('executable'))})")
         start = time.time()
         logger(f"Begin backup process for profile {profile.getName()}")
         try:
@@ -326,6 +359,7 @@ def main():
             totalSize = f"Total Size Of Original Files: {totalSizeBytes} bytes | {totalSizeMegaBytes} MB | {totalSizeGigaBytes} GB"
             totalTime = f"Total Profile Execution Time: {round(end - start,3)} Seconds"
             logger(f"PROFILE STATS:\n{numOfFiles}\n{numOfDirectories}\n{totalSize}\n{totalTime}")
+            print(f"PROFILE STATS:\n{numOfFiles}\n{numOfDirectories}\n{totalSize}\n{totalTime}")
         except:
             logger(f"Profile backup failed due to an error.")
             traceback.print_exc()
@@ -334,4 +368,5 @@ def main():
     logger(f"PROGRAM RUNTIME: {round(programEnd - programStart, 3)} Seconds")
     logger('MAIN METHOD COMPLETED')
 
-main()
+if (__name__ == '__main__'):
+    main()
