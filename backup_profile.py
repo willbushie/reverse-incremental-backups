@@ -2,8 +2,16 @@ import os
 from pathlib import Path
 
 class Profile:
-    def __init__(self, map):
-        """"""
+    """
+    ## Profile
+    The Profile class determines where source and backup locations are. Some
+    user preferences can also be recorded via this file (and object).
+    """
+    def __init__(self, map: dict[str, str]):
+        """
+        @type map: dict[str, str]
+        @param map: Dictionary of profile objects to be parsed.
+        """
         missingAttributes = []
         # required profile attributes
         self.name = map.get('name')
@@ -22,11 +30,12 @@ class Profile:
         # generated attributes
         self.executable = self.isExecutable()
 
-    def generateBlacklist(self, blacklistString):
+    def generateBlacklist(self, blacklistString: str) -> list[str]:
         """
-        Generate a list of files/directories to avoid from a string.
-        @param blacklistString - String from profiles that lists items to blacklist.
-        @param list
+        Returns a list of files/directories to skip during the backup procedure.
+
+        @type blacklistString: str
+        @param blacklistString: String from profiles that lists items to blacklist.
         """
         originalPathItems = os.listdir(self.originalPath)
         blacklist = []
@@ -38,29 +47,28 @@ class Profile:
                     dir = os.path.basename(fullPath)
                     blacklist.append(dir)
                 else:
-                    # make user aware of non-existent path?
+                    # TODO: Make user aware of non-existent path?
                     continue
         return blacklist
 
-    def getName(self):
+    def getName(self) -> str:
         return self.name
     
-    def getOriginalPath(self):
+    def getOriginalPath(self) -> str:
         return self.originalPath
     
-    def getBackupPath(self):
+    def getBackupPath(self) -> str:
         return self.backupPath
     
-    def getIndexPath(self):
+    def getIndexPath(self) -> str:
         return self.indexPath
     
-    def getBlacklist(self):
+    def getBlacklist(self) -> str:
         return self.blacklist
     
-    def getRequired(self):
+    def getRequired(self) -> dict[str, str]:
         """
-        Returns dictionary of required profile attributes.
-        @return dict
+        Returns dictionary with the required profile attributes.
         """
         returnDict = {
             'Name': self.name,
@@ -70,10 +78,9 @@ class Profile:
         }
         return returnDict
 
-    def isExecutable(self):
+    def isExecutable(self) -> bool:
         """
         Returns true if the profile is executable in the current system setup.
-        @return boolean
         """
         try:
             self.createIndexFile()
@@ -87,7 +94,7 @@ class Profile:
             return False
         return True
     
-    def createIndexFile(self):
+    def createIndexFile(self) -> None:
         """
         Creates index file and parent path if it does not already exist.
         """

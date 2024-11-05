@@ -1,5 +1,4 @@
 from pathlib import Path
-from indexfile import IndexFile
 import time
 import os
 import datetime
@@ -7,14 +6,16 @@ import shutil
 import traceback
 
 from file import File
+from indexfile import IndexFile
 from backup_profile import Profile
 from tracker import Tracker
 
-def readPreferences(path):
+def readPreferences(path: str) -> dict[str, str]:
     """
-    Read the application preferences.
-    @param path - Path to preferences file.
-    @return - Dictionary containing the application preferences.
+    Read `preferences.txt` and return a dictionary with the preferences.
+
+    @type path: str
+    @param path: Path to the `preferences.txt` file.
     """
     specialChars = ['\n', '#']
     preferences = {}
@@ -32,13 +33,13 @@ def readPreferences(path):
     prefFile.close()
     return preferences
 
-def readProfiles(path):
+def readProfiles(path: str) -> dict[str, list[Profile]]:
     """
-    Read backup profiles file & return a list of executable profiles,
-    in the order they are to be executed.
-    @param path - Path to the profile file. 
-    @return - Dictionary that contains a list of executable profiles
-    in addition to a list of all profiles.
+    Read `profiles.txt` file and return a dictionary containing both a list
+    of the executable profiles, and a list of all profiles. 
+
+    @type path: str
+    @param path: Path to the `profiles.txt` file. 
     """
     specialChars = ['\n', '#', '=']
     profiles = {'executable':[], 'all':[]}
@@ -67,12 +68,13 @@ def readProfiles(path):
     profileFile.close()
     return profiles
 
-def readIndex(path):
+def readIndex(path: str) -> dict[str, IndexFile]:
     """
-    Read the current index file, creating File objects and adding them to an
-    index to be held in memory for quick searching. 
-    @param path - Path to the index file.
-    @return - Returns indexed map of index files.
+    Read the index file, create IndexFile objects with the stored metadata,
+    and returns a dictionary.
+
+    @type path: str
+    @param path: Path to the `index.txt` file.
     """
     Index = {}
 
@@ -89,11 +91,13 @@ def readIndex(path):
 
     return Index
 
-def backup(profile):
+def backup(profile: Profile) -> dict[str, int]:
     """
-    Conduct backup procedure.
-    @param profile - Backup Profile object.
-    @return dict
+    Conduct backup procedure for a given profile and return a statistical
+    summary dictionary.
+
+    @type profile: Profile
+    @param profile: Desired profile string the backup should reference.
     """
     # profile attributes
     indexPath = profile.getIndexPath()
@@ -177,18 +181,22 @@ def backup(profile):
         'totalSize': totalSize
     }
 
-def restore():
+def restore() -> None:
     """
     Conduct restore procedure.
     """
     return None
 
-def writeToIndex(path,data):
+def writeToIndex(path: str, data: list[str]) -> None:
     """
-    Conduct all writes to the index file from data held in a list. The index file will
-    be created if it does not already exist. 
-    @param path - Path to where the index file is held/desired to be placed.
-    @param data - List containing strings of line data to write to the index file.
+    Write to `index.txt` with the new IndexFile data. 
+
+    @type path: str
+    @param path: Path to the `index.txt` file. 
+    @type data: list[str]
+    @param data: List of strings to write to the `index.txt` file. 
+
+    *Note: If the index file does not exist, it will be generated at the provided path.*
     """
     file = open(path,'w')
 
@@ -197,12 +205,16 @@ def writeToIndex(path,data):
     
     file.close()
 
-def moveFiles(operations):
+def moveFiles(operations: list[str]) -> dict[str, str]:
     """
-    Conduct all move operations in the backup location (to match source location).
-    @param operations - List containing "<old stored path>,<new stored path>" strings.
-    @return - Map containing the source and destinations for directory attributes copies to occur.
-    Note: On Windows, some metadata will not be retained. See [here](https://docs.python.org/3/library/shutil.html) for more information.
+    Given a list of operations `["/old/stored/path,/new/stored/path",..]`, try to move
+    the files from the old location to the new location (to match source structure).
+
+    @type operations: list[str]
+    @param operations: List of strings describing move operations. 
+    
+    *Note: On Windows, some metadata will not be retained.
+    See [here](https://docs.python.org/3/library/shutil.html) for more information.*
     """
     moveStatsDirs = {}
     operationsNum = len(operations)
@@ -234,13 +246,19 @@ def moveFiles(operations):
     logger(f"Move Operations Completed {operationsCompleted}/{operationsNum}")
     return moveStatsDirs
 
-def copyFiles(operations, size):
+def copyFiles(operations: list[str], size: int) -> dict[str, str]:
     """
-    Conduct all copy operations held within a list.
-    @param operations - List containing "<original path>{custom-separator}<stored path>" strings.
-    @param size - Int of bytes for total copy operations.
-    @return - Dict containing the source and destinations for directory attribute copies to occur.
-    Note: On Windows, some metadata will not be retained. See [here](https://docs.python.org/3/library/shutil.html) for more information.
+    Given a list of strings `["/original/path{custom-separator}/stored/path"]` and
+    the total number of bytes to copy, copy the files from source location to the
+    backup location. 
+
+    @type operations: list[str]
+    @param operations: List of strings describing copy operations.
+    @type size: int
+    @param size: Total number of operations to be completed. 
+
+    *Note: On Windows, some metadata will not be retained.
+    See [here](https://docs.python.org/3/library/shutil.html) for more information.*
     """
     copyStatDirs = {}
     operationsNum = len(operations)
@@ -280,19 +298,24 @@ def copyFiles(operations, size):
     logger(f"Copy Operations Completed: {operationsCompleted}/{operationsNum}")
     return copyStatDirs
 
-def removeDeletedFiles(index):
+def removeDeletedFiles(index: dict[str, IndexFile]) -> None:
     """
-    Remove deleted source files from the backup.
-    @param index - index dictionary created in backup()
+    Remove the deleted source files from the backup location. 
+
+    @type index: dict[str, IndexFile]
+    @param index: Dictionary of index files that need to be removed. 
     """
     files = index.values()
     for indexFileObject in files:
         os.remove(indexFileObject.stored_path)
 
-def copyDirStats(dirMap):
+def copyDirStats(dirMap: dict[str, str]) -> None:
     """
-    Copies directory stats/attributes from source dirs to destination dirs given a map. 
-    @param dirMap - Dict containing the sources and destinations for copying (syncing) dir stats.
+    Copies directory stats/attributes from source directories to destination 
+    directories from the passed dictionary. 
+
+    @type dirMap: dict[str, str]
+    @param dirMap:
     """
     print('Copying directory stats...')
     keys = dirMap.keys()
@@ -300,10 +323,13 @@ def copyDirStats(dirMap):
         currVal = dirMap.get(key)
         shutil.copystat(key,currVal)
 
-def logger(message=''):
+def logger(message: str = '') -> None:
     """
-    Send a message to a specific log file.
-    @param message (optional) - message to include in the log.
+    Writes a formatted log message to a specified log file. 
+
+    @type message: str
+    @param message: Message to be logged. 
+        (Default is `''`)
     """
     currTime = datetime.datetime.now()
     # timestampString = f"[{currTime.strftime("%Y-%m-%d %H:%M:%S %z")}]" # UTC offset does not display
@@ -312,10 +338,7 @@ def logger(message=''):
     file.write(f"{timestampString} {message}\n")
     file.close()
 
-def main():
-    """
-    Only method to be called.
-    """
+def main() -> None:
     open('backup.log','w').close()
 
     logger('MAIN METHOD STARTING')
