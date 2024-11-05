@@ -63,7 +63,9 @@ def readProfiles(path: str) -> dict[str, list[Profile]]:
         if (tempProfile.executable == True):
             profiles.get('executable').append(tempProfile)
     except (FileNotFoundError):
-        raise FileNotFoundError
+        profileFile.close()
+        print('Error: A profile file path may be incorrect. Please double check the paths before running again.')
+        exit()
 
     profileFile.close()
     return profiles
