@@ -14,6 +14,8 @@ class Tracker:
         self.start = time.time()
         self.end = None
         self.total = total
+        if self.total == 0:
+            self.total = 1
         self.current = 0
         self.complete = False
 
