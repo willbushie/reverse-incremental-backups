@@ -24,11 +24,17 @@ class Profile:
         if self.indexPath == None: missingAttributes.append('indexPath')
         if (len(missingAttributes) > 0):
             raise KeyError(f'Missing Profile Attributes: {missingAttributes}')
-        # optional profile attributes
+        # optional/generated attributes
         self.description = map.get('description')
-        self.blacklist = self.generateBlacklist(map.get('blacklist'))
-        # generated attributes
         self.executable = self.isExecutable()
+        try:
+            if self.executable:
+                self.blacklist = self.generateBlacklist(map.get('blacklist'))
+            else:
+                self.blacklist = []
+        except FileNotFoundError:
+            print(f"FileNotFoundError for profile {map}")
+            raise FileNotFoundError
 
     def generateBlacklist(self, blacklistString: str) -> list[str]:
         """
